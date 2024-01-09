@@ -1,0 +1,52 @@
+services:
+  schema-registry-ui:
+    image: ${IMAGE_NAME:-landoop/schema-registry-ui}:${IMAGE_TAG:-latest}
+    environment:
+      SCHEMAREGISTRY_URL:
+      PORT:
+      PROXY:
+      ALLOW_GLOBAL:
+      ALLOW_TRANSITIVE:
+      ALLOW_DELETION:
+      READONLY_MODE:
+    networks:
+      kafka-net:
+      traefik-net:
+    healthcheck:
+      test: wget --spider -nv http://localhost:${PORT}
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${HEALTHCHECK_RETRIES:-5}
+      start_period: ${HEALTHCHECK_START_PERIOD:-1m}
+    deploy:
+      mode: replicated
+      replicas: ${REPLICAS:-1}
+      restart_policy:
+        delay: ${RESTART_DELAY:-30s}
+      update_config:
+        delay: ${UPDATE_DELAY:-1m}
+      labels:
+        traefik.enable: ${TRAEFIK_ENABLE:-true}
+        traefik.http.routers.schema-registry-ui.entrypoints: ${TRAEFIK_ENTRYPOINT:-http}
+        traefik.http.routers.schema-registry-ui.rule: Host(`${TRAEFIK_SUBDOMAIN:-schemaregistryui}.${PUBLIC_HOSTNAME}`)
+        traefik.http.middlewares.schema-registry-ui-auth.basicauth.users: ${TRAEFIK_AUTH}
+        traefik.http.routers.schema-registry-ui.middlewares: schema-registry-ui-auth
+        traefik.http.services.schema-registry-ui.loadbalancer.server.port: ${PORT}
+      resources:
+        limits:
+          cpus: '${RESOURCES_LIMITS_CPUS:-0.5}'
+          memory: ${RESOURCES_LIMITS_MEMORY:-64M}
+        reservations:
+          cpus: '${RESOURCES_RESERVATIONS_CPUS:-0.001}'
+          memory: ${RESOURCES_RESERVATIONS_MEMORY:-16M}
+
+networks:
+  kafka-net:
+    name: ${KAFKA_NET_NAME:-kafka-net}
+    driver: ${KAFKA_NET_DRIVER:-overlay}
+    external: true
+
+  traefik-net:
+    name: ${TRAEFIK_NET_NAME:-traefik-net}
+    driver: ${TRAEFIK_NET_DRIVER:-overlay}
+    external: true
